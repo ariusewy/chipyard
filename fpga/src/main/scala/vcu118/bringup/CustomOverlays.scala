@@ -168,7 +168,7 @@ class BringupTSIHostVCU118PlacedOverlay(override val shell: BringupVCU118FPGATes
 
     val clkIo = IOPin(io.serial_clock)
     val packagePinsWithPackageIOs = Seq(
-      (FMCPMap("D8"), clkIo),
+      (FMCPMap("D8"), clkIo),//FMCMap:from J22 to FPGA pin
       (FMCPMap("D17"), IOPin(io.serial.out.ready)),
       (FMCPMap("D18"), IOPin(io.serial.out.valid)),
       (FMCPMap("D11"), IOPin(io.serial.out.bits, 0)),

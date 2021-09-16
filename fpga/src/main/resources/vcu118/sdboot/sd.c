@@ -235,6 +235,5 @@ int main(void)
 	kputs("BOOT");
 
 	__asm__ __volatile__ ("fence.i" : : : "memory");
-
 	return 0;
 }

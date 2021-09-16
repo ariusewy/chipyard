@@ -1,47 +1,39 @@
-package chipyard.fpga.vcu118
-
+package chipyard.fpga.vcu108
+import chipyard.harness.ApplyHarnessBinders
+import chipyard.iobinders.HasIOBinders
+import chipyard._
 import chisel3._
-import chisel3.experimental.{IO}
-
-import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.config._
-import freechips.rocketchip.subsystem._
+import freechips.rocketchip.diplomacy._
 import freechips.rocketchip.tilelink._
-
-import sifive.fpgashells.shell.xilinx._
+import sifive.blocks.devices.spi._
+import sifive.blocks.devices.uart._
+import sifive.fpgashells.clocks._
 import sifive.fpgashells.ip.xilinx._
 import sifive.fpgashells.shell._
-import sifive.fpgashells.clocks._
+import sifive.fpgashells.shell.xilinx._
 
-import sifive.blocks.devices.uart._
-import sifive.blocks.devices.spi._
-import sifive.blocks.devices.gpio._
-
-import chipyard.{HasHarnessSignalReferences, HasTestHarnessFunctions, BuildTop, ChipTop, ExtTLMem, CanHaveMasterTLMemPort, DefaultClockFrequencyKey, HasReferenceClockFreq}
-import chipyard.iobinders.{HasIOBinders}
-import chipyard.harness.{ApplyHarnessBinders}
-
-class VCU118FPGATestHarness(override implicit val p: Parameters) extends VCU118ShellBasicOverlays {
+class VCU108FPGATestHarness(override implicit val p: Parameters) extends VCU108ShellBasicOverlays {
 
   def dp = designParameters
 
-  val pmod_is_sdio  = p(VCU118ShellPMOD) == "SDIO"
+  val pmod_is_sdio  = p(VCU108ShellPMOD) == "SDIO"
   val jtag_location = Some(if (pmod_is_sdio) "FMC_J2" else "PMOD_J52")
 
   // Order matters; ddr depends on sys_clock
-  val uart      = Overlay(UARTOverlayKey, new UARTVCU118ShellPlacer(this, UARTShellInput()))
-  val sdio      = if (pmod_is_sdio) Some(Overlay(SPIOverlayKey, new SDIOVCU118ShellPlacer(this, SPIShellInput()))) else None
-  val jtag      = Overlay(JTAGDebugOverlayKey, new JTAGDebugVCU118ShellPlacer(this, JTAGDebugShellInput(location = jtag_location)))
-  val cjtag     = Overlay(cJTAGDebugOverlayKey, new cJTAGDebugVCU118ShellPlacer(this, cJTAGDebugShellInput()))
-  val jtagBScan = Overlay(JTAGDebugBScanOverlayKey, new JTAGDebugBScanVCU118ShellPlacer(this, JTAGDebugBScanShellInput()))
-  val fmc       = Overlay(PCIeOverlayKey, new PCIeVCU118FMCShellPlacer(this, PCIeShellInput()))
-  val edge      = Overlay(PCIeOverlayKey, new PCIeVCU118EdgeShellPlacer(this, PCIeShellInput()))
-  val sys_clock2 = Overlay(ClockInputOverlayKey, new SysClock2VCU118ShellPlacer(this, ClockInputShellInput()))
-  val ddr2       = Overlay(DDROverlayKey, new DDR2VCU118ShellPlacer(this, DDRShellInput()))
+  val uart      = Overlay(UARTOverlayKey, new UARTVCU108ShellPlacer(this, UARTShellInput()))
+  val sdio      = if (pmod_is_sdio) Some(Overlay(SPIOverlayKey, new SDIOVCU108ShellPlacer(this, SPIShellInput()))) else None
+  val jtag      = Overlay(JTAGDebugOverlayKey, new JTAGDebugVCU108ShellPlacer(this, JTAGDebugShellInput(location = jtag_location)))
+  val cjtag     = Overlay(cJTAGDebugOverlayKey, new cJTAGDebugVCU108ShellPlacer(this, cJTAGDebugShellInput()))
+  val jtagBScan = Overlay(JTAGDebugBScanOverlayKey, new JTAGDebugBScanVCU108ShellPlacer(this, JTAGDebugBScanShellInput()))
+  //val fmc       = Overlay(PCIeOverlayKey, new PCIeVCU108FMCShellPlacer(this, PCIeShellInput()))
+  //val edge      = Overlay(PCIeOverlayKey, new PCIeVCU108EdgeShellPlacer(this, PCIeShellInput()))
+  val sys_clock2 = Overlay(ClockInputOverlayKey, new SysClock2VCU108ShellPlacer(this, ClockInputShellInput()))
+  val ddr2       = Overlay(DDROverlayKey, new DDR2VCU108ShellPlacer(this, DDRShellInput()))
 
   val topDesign = LazyModule(p(BuildTop)(dp)).suggestName("chiptop")
 
-  // DOC include start: ClockOverlay
+// DOC include start: ClockOverlay
   // place all clocks in the shell
   require(dp(ClockInputOverlayKey).size >= 1)
   val sysClkNode = dp(ClockInputOverlayKey)(0).place(ClockInputDesignInput()).overlayOutput.node
@@ -53,25 +45,25 @@ class VCU118FPGATestHarness(override implicit val p: Parameters) extends VCU118S
   harnessSysPLL := sysClkNode
 
   // create and connect to the dutClock
-  println(s"VCU118 FPGA Base Clock Freq: ${dp(DefaultClockFrequencyKey)} MHz")
+  println(s"VCU108 FPGA Base Clock Freq: ${dp(DefaultClockFrequencyKey)} MHz")
   val dutClock = ClockSinkNode(freqMHz = dp(DefaultClockFrequencyKey))
   val dutWrangler = LazyModule(new ResetWrangler)
   val dutGroup = ClockGroup()
   dutClock := dutWrangler.node := dutGroup := harnessSysPLL
-  // DOC include end: ClockOverlay
+// DOC include end: ClockOverlay
 
   /*** UART ***/
 
-  // DOC include start: UartOverlay
-  // 1st UART goes to the VCU118 dedicated UART
+// DOC include start: UartOverlay
+  // 1st UART goes to the VCU108 dedicated UART
 
   val io_uart_bb = BundleBridgeSource(() => (new UARTPortIO(dp(PeripheryUARTKey).head)))
   dp(UARTOverlayKey).head.place(UARTDesignInput(io_uart_bb))
-  // DOC include end: UartOverlay
+// DOC include end: UartOverlay
 
   /*** SPI ***/
 
-  // 1st SPI goes to the VCU118 SDIO port
+  // 1st SPI goes to the VCU108 SDIO port
 
   val io_spi_bb = BundleBridgeSource(() => (new SPIPortIO(dp(PeripherySPIKey).head)))
   dp(SPIOverlayKey).head.place(SPIDesignInput(dp(PeripherySPIKey).head, io_spi_bb))
@@ -90,15 +82,15 @@ class VCU118FPGATestHarness(override implicit val p: Parameters) extends VCU118S
   ddrNode := ddrClient
 
   // module implementation
-  override lazy val module = new VCU118FPGATestHarnessImp(this)
+  override lazy val module = new VCU108FPGATestHarnessImp(this)
 }
 
-class VCU118FPGATestHarnessImp(_outer: VCU118FPGATestHarness) extends LazyRawModuleImp(_outer) with HasHarnessSignalReferences {
+class VCU108FPGATestHarnessImp(_outer: VCU108FPGATestHarness) extends LazyRawModuleImp(_outer) with HasHarnessSignalReferences {
 
-  val vcu118Outer = _outer
+  val vcu108Outer = _outer
 
   val reset = IO(Input(Bool()))
-  _outer.xdc.addPackagePin(reset, "L19")
+  _outer.xdc.addPackagePin(reset, "E36")
   _outer.xdc.addIOStandard(reset, "LVCMOS12")
 
   val resetIBUF = Module(new IBUF)
@@ -110,7 +102,7 @@ class VCU118FPGATestHarnessImp(_outer: VCU118FPGATestHarness) extends LazyRawMod
   _outer.sdc.addAsyncPath(Seq(powerOnReset))
 
   val ereset: Bool = _outer.chiplink.get() match {
-    case Some(x: ChipLinkVCU118PlacedOverlay) => !x.ereset_n
+    case Some(x: ChipLinkVCU108PlacedOverlay) => !x.ereset_n
     case _ => false.B
   }
 
